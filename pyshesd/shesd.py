@@ -219,24 +219,12 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
 
     if use_esd:
         def ma_func(data):
-            if kind == 'upper_tail':
-                ares = data - data.mean()
-            elif kind == 'lower_tail':
-                ares = data.mean() - data
-            else:
-                ares = (data - data.mean()).abs()
-            return ares
+            return data.mean()
         def sigma_func(data):
             return data.std()
     else:
         def ma_func(data):
-            if kind == 'upper_tail':
-                ares = data - data.median()
-            elif kind == 'lower_tail':
-                ares = data.median() - data
-            else:
-                ares = (data - data.median()).abs()
-            return ares
+            return data.median()
         def sigma_func(data):
             return data.mad()
 
@@ -252,7 +240,13 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
         #     ares = data.median() - data
         # else:
         #     ares = (data - data.median()).abs()
-        ares = ma_func(data)
+        if kind == 'upper_tail':
+            ares = data - ma_func(data)
+        elif kind == 'lower_tail':
+            ares = ma_func(data) - data
+        else:
+            ares = (data - ma_func(data)).abs()
+        
 
         # protect against constant time series
         # data_sigma = data.mad()
