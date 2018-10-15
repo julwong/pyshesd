@@ -156,7 +156,7 @@ Reference
     return pandas.DataFrame(result,index=index)
 
 def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
-                         use_esd=False, kind='two_tail',
+                         use_esd=False, direction='both',
                          verbose=False):
     """
     Detects anomalies in a time series using S-H-ESD.
@@ -172,8 +172,8 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
             Defines the number of observations in a single period, and used during seasonal decomposition.
  	use_esd: Boolean *[True]*
             Uses regular ESD instead of hybrid-ESD. Note hybrid-ESD is more statistically robust.
- 	kind: String *[two_tail]*
-            Wich kind of test to be perform, should be exactly one of two_tail/upper_tail/lower_tail.
+ 	direction: String *[both]*
+            Wich direction of t-test to be perform, should be exactly one of both/right/left.
  	verbose: Boolean *[False]*
             Additionally printing for debugging.
     Returns:
@@ -188,8 +188,8 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
     if num_obs < num_obs_per_period * 2:
         raise ValueError("Anom detection needs at least 2 periods worth of data")
 
-    if kind not in ('upper_tail', 'lower_tail', 'two_tail'):
-        raise ValueError("kind should be one of upper_tail/lower_tail/two_tail")
+    if direction not in ('both', 'left', 'right'):
+        raise ValueError("kind should be one of both/left/right")
 
     # TODO: Handle NAs
     
@@ -219,9 +219,11 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
 
     if use_esd:
         def ma_func(data):
-            return data.mean()
+            #return data.mean()
+            return data.median()
         def sigma_func(data):
-            return data.std()
+            #return data.std()
+            return sqrt((data - data.median()).pow(2).sum()/(len(data)-1))
     else:
         def ma_func(data):
             return data.median()
@@ -234,20 +236,13 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
         if verbose:
             print("%s/%s completed" % (i, max_outliers))
 
-        # if kind == 'upper_tail':
-        #     ares = data - data.median()
-        # elif kind == 'lower_tail':
-        #     ares = data.median() - data
-        # else:
-        #     ares = (data - data.median()).abs()
-        if kind == 'upper_tail':
+        if direction == 'right':
             ares = data - ma_func(data)
-        elif kind == 'lower_tail':
+        elif direction == 'left':
             ares = ma_func(data) - data
         else:
             ares = (data - ma_func(data)).abs()
         
-
         # protect against constant time series
         # data_sigma = data.mad()
         data_sigma = sigma_func(data)
@@ -263,7 +258,7 @@ def shesd(data, k=0.05, alpha=0.05, num_obs_per_period=None,
         data = data.drop(index=temp_max_idx)
       
         ## Compute critical value.
-        if kind == 'tow_tail':
+        if direction == 'both':
             p = 1 - alpha/(2*(n-i+1))
         else:
             p = 1 - alpha/(n-i+1)
